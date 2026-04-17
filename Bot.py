@@ -1,27 +1,25 @@
 import asyncio
-import json
 import random
 from starlette.applications import Starlette
 from starlette.routing import Route
 from starlette.requests import Request
 from starlette.responses import Response, PlainTextResponse
 from telegram import Update
-from telegram.ext import Application, CommandHandler, ContextTypes
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 import uvicorn
-
-# ===== ВСТАВЬТЕ ВАШ ТОКЕН СЮДА =====
-TOKEN = "8217623337:AAE0jHhy6QLjQuF8t4VBfyjsxfJG5x3CX84"
-# ====================================
-
-PORT = 8000
-
-# Получаем URL от Render (автоматически)
 import os
-WEBHOOK_URL = os.environ.get("RENDER_EXTERNAL_URL", "https://localhost")
-if WEBHOOK_URL == "https://localhost":
-    print("⚠️ ВНИМАНИЕ: RENDER_EXTERNAL_URL не задан! Вебхук не установится.")
 
-# ---------- ВСЕ ВАШИ КОМАНДЫ ----------
+# ===== ВСТАВЬТЕ ВАШ НОВЫЙ ТОКЕН СЮДА =====
+TOKEN = "ЗАМЕНИТЕ_НА_ВАШ_ТОКЕН"
+# =========================================
+
+PORT = int(os.environ.get("PORT", 8000))
+WEBHOOK_URL = os.environ.get("RENDER_EXTERNAL_URL", "")
+if not WEBHOOK_URL:
+    print("❌ ОШИБКА: RENDER_EXTERNAL_URL не задан!")
+    exit(1)
+
+# ---------- КОМАНДЫ ----------
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Привет я Claude opus 4.6 работаю в arena.ai есть долгие ответы но хотя бы рабочий!")
 
@@ -49,19 +47,6 @@ async def show_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode='Markdown'
     )
 
-async def calculate(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text
-    try:
-        allowed = set("0123456789+-*/(). ")
-        if all(c in allowed for c in text):
-            result = eval(text)
-            await update.message.reply_text(f"🧮 = {result}")
-    except:
-        pass
-
-async def react_to_sticker(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("🎨 Классный стикер! Спасибо 😊")
-
 async def joke(update: Update, context: ContextTypes.DEFAULT_TYPE):
     jokes = [
         "Почему программисты путают Хэллоуин и Рождество? Потому что 31 Oct = 25 Dec.",
@@ -77,6 +62,24 @@ async def joke(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     await update.message.reply_text(f"😂 Шутка дня:\n{random.choice(jokes)}")
 
+# Калькулятор (на любое сообщение, не начинающееся с /)
+async def calculate(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text
+    if not text or text.startswith('/'):
+        return
+    try:
+        allowed = set("0123456789+-*/(). ")
+        if all(c in allowed for c in text):
+            result = eval(text)
+            await update.message.reply_text(f"🧮 = {result}")
+    except:
+        pass
+
+# Ответ на стикеры
+async def react_to_sticker(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("🎨 Классный стикер! Спасибо 😊")
+
+# Приветствие новых участников
 async def welcome_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
     iris_bots = ['iris_bs_bot', 'iris_moon_bot', 'iris_cm_bot', 'iris_black_bot']
     for new_member in update.message.new_chat_members:
@@ -88,48 +91,32 @@ async def welcome_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE)
         else:
             await update.message.reply_text(f"Привет, {new_member.first_name}! Я Claude opus 4.6 работаю в arena.ai")
 
-# ---------- ЗАПУСК ВЕБХУКА ----------
+# ---------- ЗАПУСК ----------
 async def main():
-    if not TOKEN:
-        print("❌ ОШИБКА: Токен не вставлен! Откройте файл bot.py и вставьте токен в кавычки.")
+    if not TOKEN or TOKEN == "ЗАМЕНИТЕ_НА_ВАШ_ТОКЕН":
+        print("❌ ОШИБКА: Токен не вставлен!")
         return
     
-    # Создаём приложение Telegram
     app = Application.builder().token(TOKEN).updater(None).build()
     
-    # Регистрируем обработчики
+    # Регистрируем команды
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("info", info))
     app.add_handler(CommandHandler("random", random_cmd))
     app.add_handler(CommandHandler("id", show_id))
     app.add_handler(CommandHandler("joke", joke))
-    app.add_handler(CommandHandler("calc", calculate))  # Если хотите отдельную команду
     
-    # Обработчик для математики в любом сообщении
-    async def auto_calc(update: Update, context: ContextTypes.DEFAULT_TYPE):
-        if update.message and update.message.text and any(op in update.message.text for op in '+-*/'):
-            if not update.message.text.startswith('/'):
-                await calculate(update, context)
-    app.add_handler(auto_calc)
-    
-    # Обработчик стикеров
-    async def sticker_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-        if update.message and update.message.sticker:
-            await react_to_sticker(update, context)
-    app.add_handler(sticker_handler)
-    
-    # Обработчик новых участников
-    app.add_handler(CommandHandler("new_chat_members", welcome_new_member))
+    # Обработчики (исправлено!)
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, calculate))
+    app.add_handler(MessageHandler(filters.Sticker.ALL, react_to_sticker))
+    app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_new_member))
     
     # Устанавливаем вебхук
     webhook_url = f"{WEBHOOK_URL}/telegram"
-    if WEBHOOK_URL != "https://localhost":
-        await app.bot.set_webhook(webhook_url)
-        print(f"✅ Вебхук установлен: {webhook_url}")
-    else:
-        print("❌ Вебхук НЕ установлен: RENDER_EXTERNAL_URL не задан")
+    await app.bot.set_webhook(webhook_url)
+    print(f"✅ Вебхук установлен: {webhook_url}")
     
-    # Настраиваем веб-сервер Starlette
+    # Веб-сервер
     async def telegram_webhook(request: Request) -> Response:
         data = await request.json()
         update = Update.de_json(data, app.bot)
@@ -144,7 +131,6 @@ async def main():
         Route("/healthcheck", healthcheck, methods=["GET"]),
     ])
     
-    # Запускаем сервер
     config = uvicorn.Config(starlette_app, host="0.0.0.0", port=PORT, log_level="info")
     server = uvicorn.Server(config)
     
