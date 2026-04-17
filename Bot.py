@@ -10,7 +10,7 @@ import uvicorn
 import os
 
 # ===== ВСТАВЬТЕ ВАШ НОВЫЙ ТОКЕН СЮДА =====
-TOKEN = "ЗАМЕНИТЕ_НА_ВАШ_ТОКЕН"
+TOKEN = "8217623337:AAE0jHhy6QLjQuF8t4VBfyjsxfJG5x3CX84"
 # =========================================
 
 PORT = int(os.environ.get("PORT", 8000))
