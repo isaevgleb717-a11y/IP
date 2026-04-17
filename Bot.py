@@ -23,7 +23,7 @@ if not WEBHOOK_URL:
 
 # ---------- КОМАНДЫ ----------
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Привет! Я Claude opus 4.6 работаю в arena.ai!")
+    await update.message.reply_text("Привет! Я Claude opus 4.6 работаю в arena.ai! Хочу сказать что узнать все команды можно в /help")
 
 async def info(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Я бот через arena.ai, спасибо что пользуешься!")
@@ -65,6 +65,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 🎲 *Дополнительно:*
 • Напишите пример (2+2) — бот посчитает
 • Пришлите стикер — бот ответит
+• Надо писать с помощью ответа (Только для дополнительных команд)
 """
     await update.message.reply_text(text, parse_mode='Markdown')
 
