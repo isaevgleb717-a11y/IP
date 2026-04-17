@@ -3,7 +3,7 @@ from telebot.types import Message
 import random
 
 # ===== ВСТАВЬТЕ НОВЫЙ ТОКЕН СЮДА (ПОСЛЕ /revoke) =====
-TOKEN = 'СЮДА_НОВЫЙ_ТОКЕН_ПОСЛЕ_ОТЗЫВА'
+TOKEN = '8217623337:AAE0jHhy6QLjQuF8t4VBfyjsxfJG5x3CX84'
 # =====================================================
 
 bot = telebot.TeleBot(TOKEN)
