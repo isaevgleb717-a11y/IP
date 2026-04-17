@@ -11,7 +11,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 import uvicorn
 
 # ===== НАСТРОЙКИ =====
-TOKEN = "YOUR_TOKEN_HERE"  # ЗАМЕНИТЕ НА ВАШ ТОКЕН ПОСЛЕ /revoke
+TOKEN = "8217623337:AAE0jHhy6QLjQuF8t4VBfyjsxfJG5x3CX84"  # ЗАМЕНИТЕ НА ВАШ ТОКЕН ПОСЛЕ /revoke
 CREATOR_ID = 7474885162      # ВАШ TELEGRAM ID (узнаётся командой /id)
 # =====================
 
