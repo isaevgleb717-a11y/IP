@@ -1,0 +1,83 @@
+import telebot
+from telebot.types import Message
+import random
+
+# ===== ВСТАВЬТЕ НОВЫЙ ТОКЕН СЮДА (ПОСЛЕ /revoke) =====
+TOKEN = 'СЮДА_НОВЫЙ_ТОКЕН_ПОСЛЕ_ОТЗЫВА'
+# =====================================================
+
+bot = telebot.TeleBot(TOKEN)
+
+@bot.message_handler(commands=['start'])
+def send_welcome(message: Message):
+    bot.reply_to(message, "Привет я Claude opus 4.6 работаю в arena.ai есть долгие ответы но хотя бы рабочий!")
+
+@bot.message_handler(commands=['info'])
+def send_info(message: Message):
+    bot.reply_to(message, "Привет я бот работаю через arena.ai спасибо что пользуешься!")
+
+@bot.message_handler(commands=['random'])
+def random_phrase(message: Message):
+    phrases = [
+        "🍀 Сегодня твой день!",
+        "🎲 Я бросаю кубик... Выпало 6!",
+        "🤖 Я бот, а ты?",
+        "🌟 Помни: всё будет хорошо.",
+        "🐱 Мяу?",
+        "⚡ Ответ: 42",
+        "💡 Попробуй написать /joke"
+    ]
+    bot.reply_to(message, random.choice(phrases))
+
+@bot.message_handler(commands=['id'])
+def show_id(message: Message):
+    user_id = message.from_user.id
+    chat_id = message.chat.id
+    username = message.from_user.username or "без юзернейма"
+    bot.reply_to(message, f"👤 Твой ID: `{user_id}`\n💬 ID чата: `{chat_id}`\n📛 Username: @{username}", parse_mode='Markdown')
+
+@bot.message_handler(func=lambda message: any(op in message.text for op in '+-*/') and not message.text.startswith('/'))
+def calculate(message: Message):
+    try:
+        allowed = set("0123456789+-*/(). ")
+        if all(c in allowed for c in message.text):
+            result = eval(message.text)
+            bot.reply_to(message, f"🧮 = {result}")
+    except:
+        pass
+
+@bot.message_handler(content_types=['sticker'])
+def react_to_sticker(message: Message):
+    bot.reply_to(message, "🎨 Классный стикер! Спасибо 😊")
+
+@bot.message_handler(commands=['joke'])
+def send_joke(message: Message):
+    jokes = [
+        "Почему программисты путают Хэллоуин и Рождество? Потому что 31 Oct = 25 Dec.",
+        "— У тебя есть 5 минут, чтобы объяснить, что такое квантовая физика. — Секунду... Ой, уже нет времени.",
+        "Что говорит один стринг другому? — Ты мне не равен!",
+        "Зачем хакеру парашют? Чтобы избежать дамп памяти.",
+        "Сколько программистов нужно, чтобы заменить лампочку? Ни одного, это аппаратная проблема.",
+        "— Почему ты плачешь? — Мне сказали, что я должен быть в курсе всех багов. — И что? — Я не курю.",
+        "Что делает бот, когда его никто не использует? Ждёт, пока кто-нибудь напишет /start.",
+        "Как назвать бота, который любит анекдоты? JokeBot 3000.",
+        "— Ты бот? — Нет. — А почему отвечаешь через 0.001 секунды? — Я просто быстро печатаю.",
+        "Сколько ботов нужно, чтобы поприветствовать Ириса? Одного, но с хорошей фантазией."
+    ]
+    chosen = random.choice(jokes)
+    bot.reply_to(message, f"😂 Шутка дня:\n{chosen}")
+
+@bot.message_handler(content_types=['new_chat_members'])
+def welcome_new_member(message: Message):
+    iris_bots = ['iris_bs_bot', 'iris_moon_bot', 'iris_cm_bot', 'iris_black_bot']
+    for new_member in message.new_chat_members:
+        username = new_member.username.lower() if new_member.username else ''
+        if username in iris_bots:
+            bot.reply_to(message, f"Привет {username} Я Claude opus 4.6 надеюсь ты меня не заблокируешь ☺️")
+        elif new_member.id == bot.get_me().id:
+            bot.reply_to(message, "Привет я Claude opus 4.6 работаю в arena.ai есть долгие ответы но хотя бы рабочий!")
+        else:
+            bot.reply_to(message, f"Привет, {new_member.first_name}! Я Claude opus 4.6 работаю в arena.ai")
+
+print("✅ Бот запущен!")
+bot.infinity_polling()
