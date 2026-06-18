@@ -20,8 +20,8 @@ from langchain.vectorstores import Chroma
 from groq import Groq
 
 # ===== НАСТРОЙКИ =====
-TOKEN = "ВАШ_ТОКЕН"            # токен от BotFather
-GROQ_API_KEY = "ВАШ_КЛЮЧ_GROQ" # ключ от Groq
+TOKEN = os.environ.get("TOKEN")
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 # =====================
 
 PORT = int(os.environ.get("PORT", 8000))
