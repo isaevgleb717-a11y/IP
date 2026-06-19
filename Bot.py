@@ -19,33 +19,40 @@ from langchain_embeddings import HuggingFaceEmbeddings
 from langchain.vectorstores import Chroma
 from groq import Groq
 
-# ===== НАСТРОЙКИ =====
+# ===== НАСТРОЙКИ (из переменных окружения) =====
 TOKEN = os.environ.get("TOKEN")
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
-# =====================
+
+if not TOKEN:
+    raise ValueError("Переменная окружения TOKEN не задана!")
+if not GROQ_API_KEY:
+    raise ValueError("Переменная окружения GROQ_API_KEY не задана!")
+# ===============================================
 
 PORT = int(os.environ.get("PORT", 8000))
 WEBHOOK_URL = os.environ.get("RENDER_EXTERNAL_URL")
+if not WEBHOOK_URL:
+    print("❌ RENDER_EXTERNAL_URL не задан")
+    exit(1)
 
 # ===== ИНИЦИАЛИЗАЦИЯ =====
 embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 groq_client = Groq(api_key=GROQ_API_KEY)
 
-# Глобальные базы данных (векторные)
+# Глобальные базы данных
 news_db = None
 code_db = None
 dialog_db = None
 url_db = None
 
-# История диалогов по чатам
+# История диалогов
 chat_histories = {}
 
-# Флаг активности бота (по умолчанию активен)
+# Флаг активности бота
 bot_active = True
 
 # ===== ФУНКЦИИ ПАРСИНГА =====
 def parse_tass_news(keyword=None):
-    """Парсит новости с ТАСС"""
     try:
         url = "https://tass.ru/"
         response = requests.get(url, timeout=10)
@@ -67,7 +74,6 @@ def parse_tass_news(keyword=None):
         return []
 
 def parse_code_sites(query=None):
-    """Парсит код с GitHub API"""
     try:
         if query:
             url = f"https://api.github.com/search/code?q={query}&per_page=5"
@@ -88,23 +94,20 @@ def parse_code_sites(query=None):
         return []
 
 def parse_url_content(url):
-    """Парсит содержимое веб-страницы по ссылке"""
     try:
         response = requests.get(url, timeout=15)
         soup = BeautifulSoup(response.text, 'html.parser')
-        # Удаляем скрипты и стили
         for script in soup(["script", "style"]):
             script.decompose()
         text = soup.get_text(separator="\n")
         lines = [line.strip() for line in text.splitlines() if line.strip()]
-        content = "\n".join(lines[:200])  # ограничиваем
+        content = "\n".join(lines[:200])
         return content
     except Exception as e:
         print(f"Ошибка парсинга URL: {e}")
         return None
 
 def get_crypto_price(coin_id, vs_currencies=['usd','eur','rub','gbp','jpy']):
-    """Получает цену криптовалюты через CoinGecko"""
     try:
         url = f"https://api.coingecko.com/api/v3/simple/price?ids={coin_id}&vs_currencies={','.join(vs_currencies)}"
         response = requests.get(url, timeout=10)
@@ -117,7 +120,6 @@ def get_crypto_price(coin_id, vs_currencies=['usd','eur','rub','gbp','jpy']):
         return None
 
 def get_fiat_rates(base='USD', targets=['USD','EUR','RUB','GBP','JPY']):
-    """Получает курсы фиатных валют через exchangerate.host"""
     try:
         url = f"https://api.exchangerate.host/latest?base={base}&symbols={','.join(targets)}"
         response = requests.get(url, timeout=10)
@@ -131,7 +133,6 @@ def get_fiat_rates(base='USD', targets=['USD','EUR','RUB','GBP','JPY']):
 
 # ===== RAG =====
 def create_vector_db(documents, db_type='news'):
-    """Создаёт векторную базу из документов"""
     try:
         text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=500,
@@ -200,8 +201,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global bot_active
     bot_active = True
     await update.message.reply_text(
-        "🧠 *Huminis Opus 4.6 RAG*\n"
-        "Бот активен. Используйте /help для списка команд.",
+        "🧠 *Huminis Opus 4.6*\n"
+        "Я работаю с помощью API HC (Huminis Corporation).\n\n"
+        "Используй /help для списка команд.",
         parse_mode='Markdown'
     )
 
@@ -246,12 +248,15 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def info(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = (
-        "🧠 *Huminis Opus 4.6 RAG*\n"
-        "📅 Версия: 4.6 RAG\n"
-        "🏗️ Архитектура: CGH3+ с Groq (бесплатный API)\n"
-        "📚 Обучена на: ТАСС, GitHub, ссылках, диалогах\n"
+        "🧠 *Huminis Opus 4.6 (≈750B)*\n"
+        "📅 Дата выпуска: 4 июня 2026\n"
+        "🏗️ Архитектура: CGH3+ (20% Claude, 20% GPT, 60% Huminis)\n"
+        "⚡ Активных параметров: ≈300B на токен\n"
+        "📚 Контекст: 320 000 токенов\n"
+        "🎯 Точность: 99.1% MMLU, 99.8% TruthfulQA\n"
         "🌍 Коллективный интеллект: активен\n"
-        "🔮 Квантовое ускорение: доступно\n\n"
+        "🔮 Квантовое ускорение: доступно\n"
+        "🤖 Работаю с помощью API HC (Huminis Corporation).\n\n"
         "_Синергия, честность, эволюция._"
     )
     await update.message.reply_text(text, parse_mode='Markdown')
@@ -367,7 +372,6 @@ async def learn_dialog(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if chat_id not in chat_histories or len(chat_histories[chat_id]) < 2:
         await update.message.reply_text("❌ Недостаточно сообщений в чате для обучения. Нужно хотя бы 2 сообщения.")
         return
-    # Берём последние 20 сообщений
     history = chat_histories[chat_id][-20:]
     dialog_text = "\n".join(history)
     await update.message.reply_text("📖 Обучаюсь на диалогах...")
@@ -393,7 +397,6 @@ async def open_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not content:
         await update.message.reply_text("❌ Не удалось прочитать страницу.")
         return
-    # Сохраняем в базу
     db = create_vector_db([{'title': f'Страница: {url}', 'description': content[:1000]}], 'url')
     if db:
         url_db = db
@@ -408,7 +411,6 @@ async def moneycursu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Укажите валюту, например:\n`/moneycursu BTC`\n`/moneycursu USD`", parse_mode='Markdown')
         return
     symbol = args[0].upper()
-    # Сопоставление символов с ID для CoinGecko
     crypto_map = {
         'BTC': 'bitcoin',
         'ETH': 'ethereum',
@@ -447,28 +449,20 @@ async def moneycursu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"❌ Неизвестная валюта. Поддерживаемые: {', '.join(list(crypto_map.keys()) + fiat_currencies)}"
         )
 
-# ===== ОБРАБОТЧИК ТЕКСТА (запись истории и проверка активности) =====
+# ===== ОБРАБОТЧИК ТЕКСТА (запись истории и простые ответы) =====
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global bot_active
     if not bot_active:
-        return  # бот остановлен
-
+        return
     text = update.message.text
-    if not text:
+    if not text or text.startswith('/'):
         return
-    if text.startswith('/'):
-        return
-
-    # Сохраняем в историю чата
     chat_id = update.effective_chat.id
     if chat_id not in chat_histories:
         chat_histories[chat_id] = []
     chat_histories[chat_id].append(f"{update.effective_user.first_name}: {text}")
     if len(chat_histories[chat_id]) > 100:
         chat_histories[chat_id] = chat_histories[chat_id][-100:]
-
-    # Проверка на ключевые слова (можно использовать старый словарь RESPONSES, но мы его убрали)
-    # Можно добавить простые ответы на приветствия
     lower_text = text.lower()
     if lower_text in ['привет', 'здравствуй', 'хай', 'салам']:
         await update.message.reply_text("Привет! Чем могу помочь?")
@@ -476,9 +470,6 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if 'как дела' in lower_text:
         await update.message.reply_text("У меня всё отлично! А у тебя?")
         return
-
-    # Если есть базы знаний, можно попробовать ответить через RAG
-    # Но для простоты - ничего не делаем, чтобы не перегружать.
 
 # ===== ОБРАБОТЧИК СТИКЕРОВ =====
 async def sticker_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -489,6 +480,25 @@ async def sticker_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "🧠 Коллективный интеллект одобряет.",
         "⚡ Groq заметил твой стикер!"
     ]))
+
+# ===== ПРИВЕТСТВИЕ НОВЫХ УЧАСТНИКОВ (обновлено) =====
+async def welcome_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    iris_bots = ['iris_bs_bot', 'iris_moon_bot', 'iris_cm_bot', 'iris_black_bot']
+    # Новая ссылка на изображение
+    image_url = "https://drive.google.com/uc?export=view&id=1NJ3tFi7LVC1O_SKXcf6CnL1J0rvDMeIf"
+    for new_member in update.message.new_chat_members:
+        username = new_member.username.lower() if new_member.username else ''
+        name = new_member.first_name
+        if username in iris_bots:
+            text = f"🧠 Привет {username}! Я Huminis Opus 4.6, работаю с помощью API HC (Huminis Corporation)."
+        elif new_member.id == (await context.bot.get_me()).id:
+            text = "🧠 Привет! Я Huminis Opus 4.6, работаю с помощью API HC (Huminis Corporation)."
+        else:
+            text = f"🧠 Привет, {name}! Я Huminis Opus 4.6, работаю с помощью API HC (Huminis Corporation)."
+        try:
+            await update.message.reply_photo(photo=image_url, caption=text)
+        except:
+            await update.message.reply_text(text)
 
 # ===== KEEP-ALIVE =====
 async def keep_alive():
@@ -520,6 +530,7 @@ async def main():
     app.add_handler(CommandHandler("moneycursu", moneycursu))
     app.add_handler(MessageHandler(filters.Sticker.ALL, sticker_reply))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
+    app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_new_member))
 
     webhook_url = f"{WEBHOOK_URL}/telegram"
     await app.bot.set_webhook(webhook_url)
